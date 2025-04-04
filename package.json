@@ -1,0 +1,17 @@
+{
+  "name": "steamgifts-autojoin-modern",
+  "version": "0.3.0",
+  "description": "Modernized extension...",
+  "scripts": {
+    "dev": "parcel watch --dist-dir dist --no-cache",
+    "build": "parcel build --dist-dir dist --no-cache"
+  },
+  "source": "manifest.json",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@parcel/config-webextension": "^2.14.4",
+    "parcel": "^2.14.2"
+  }
+}
