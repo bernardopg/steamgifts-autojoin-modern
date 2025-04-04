@@ -1,10 +1,8 @@
-import * as Selectors from "./selectors.js";
-import * as State from "./state.js";
+import * as Selectors from './selectors.js';
+import * as State from './state.js';
 
 function createIndicatorElement() {
-  if (document.getElementById(Selectors.statusIndicatorId)) {
-    return;
-  }
+  if (document.getElementById(Selectors.statusIndicatorId)) { return; }
   const pointsElement = document.querySelector(Selectors.pointsSelector);
   const targetLocation = pointsElement?.parentElement;
   if (targetLocation) {
@@ -21,9 +19,7 @@ function createIndicatorElement() {
     targetLocation.appendChild(indicator);
     console.log("[SG AutoJoin] Status indicator created.");
   } else {
-    console.warn(
-      "[SG AutoJoin] Could not find target location for status indicator (near points)."
-    );
+    console.warn("[SG AutoJoin] Could not find target location for status indicator (near points).");
   }
 }
 
@@ -48,12 +44,12 @@ export function updateIndicatorUI(isEnabled) {
 }
 
 export function initializeIndicator() {
-  console.log("[SG AutoJoin] Initializing Indicator UI...");
-  createIndicatorElement();
-  chrome.storage.sync.get("autoJoinEnabled", (data) => {
-    const initialEnabledState = !!data.autoJoinEnabled;
-    State.setAutoJoinEnabled(initialEnabledState);
-    updateIndicatorUI(initialEnabledState);
-    console.log("[SG AutoJoin] Initial indicator state:", initialEnabledState);
-  });
+    console.log("[SG AutoJoin] Initializing Indicator UI...");
+    createIndicatorElement();
+    chrome.storage.sync.get("autoJoinEnabled", (data) => {
+        const initialEnabledState = !!data.autoJoinEnabled;
+        State.setAutoJoinEnabled(initialEnabledState);
+        updateIndicatorUI(initialEnabledState);
+        console.log("[SG AutoJoin] Initial indicator state:", initialEnabledState);
+    });
 }

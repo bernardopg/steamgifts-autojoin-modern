@@ -13,12 +13,7 @@ const statusMessage = document.getElementById("statusMessage");
 
 function showStatus(message, isError = false) {
   statusMessage.textContent = message;
-  statusMessage.classList.remove(
-    "alert",
-    "alert-success",
-    "alert-danger",
-    "alert-warning"
-  );
+  statusMessage.classList.remove("alert", "alert-success", "alert-danger", "alert-warning");
   statusMessage.classList.add("alert");
   statusMessage.classList.add(isError ? "alert-danger" : "alert-success");
   setTimeout(() => {
@@ -44,10 +39,7 @@ function loadSettings() {
     (items) => {
       if (chrome.runtime.lastError) {
         console.error("Error loading settings:", chrome.runtime.lastError);
-        showStatus(
-          "Error loading settings! " + chrome.runtime.lastError.message,
-          true
-        );
+        showStatus("Error loading settings! " + chrome.runtime.lastError.message, true);
       } else {
         pointBufferInput.value = items.pointBuffer;
         maxCostInput.value = items.maxCost;
@@ -59,7 +51,6 @@ function loadSettings() {
         blacklistKeywordsTextarea.value = items.blacklistKeywords;
         whitelistKeywordsTextarea.value = items.whitelistKeywords;
         autoModeEnabledCheckbox.checked = items.autoModeEnabled;
-        console.log("Settings loaded:", items);
       }
     }
   );
@@ -74,37 +65,22 @@ function saveSettings() {
   const skipGroupsValue = skipGroupsCheckbox.checked;
   const skipOwnedValue = skipOwnedCheckbox.checked;
   const blacklistKeywordsValue = blacklistKeywordsTextarea.value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join("\n");
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n');
   const whitelistKeywordsValue = whitelistKeywordsTextarea.value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join("\n");
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n');
   const autoModeEnabledValue = autoModeEnabledCheckbox.checked;
 
-  if (isNaN(pointBufferValue) || pointBufferValue < 0) {
-    showStatus("Point Buffer must be non-negative.", true);
-    return;
-  }
-  if (isNaN(maxCostValue) || maxCostValue < 0) {
-    showStatus("Max Cost must be non-negative.", true);
-    return;
-  }
-  if (isNaN(minCostValue) || minCostValue < 0) {
-    showStatus("Min Cost must be non-negative.", true);
-    return;
-  }
-  if (minCostValue > maxCostValue && maxCostValue > 0) {
-    showStatus("Min Cost cannot be > Max Cost.", true);
-    return;
-  }
-  if (isNaN(maxLevelValue) || maxLevelValue < 0 || maxLevelValue > 10) {
-    showStatus("Max Level must be 0-10.", true);
-    return;
-  }
+  if (isNaN(pointBufferValue) || pointBufferValue < 0) { showStatus("Point Buffer must be non-negative.", true); return; }
+  if (isNaN(maxCostValue) || maxCostValue < 0) { showStatus("Max Cost must be non-negative.", true); return; }
+  if (isNaN(minCostValue) || minCostValue < 0) { showStatus("Min Cost must be non-negative.", true); return; }
+  if (minCostValue > maxCostValue && maxCostValue > 0) { showStatus("Min Cost cannot be > Max Cost.", true); return; }
+  if (isNaN(maxLevelValue) || maxLevelValue < 0 || maxLevelValue > 10) { showStatus("Max Level must be 0-10.", true); return; }
 
   blacklistKeywordsTextarea.value = blacklistKeywordsValue;
   whitelistKeywordsTextarea.value = whitelistKeywordsValue;
@@ -125,10 +101,7 @@ function saveSettings() {
   chrome.storage.sync.set(settingsToSave, () => {
     if (chrome.runtime.lastError) {
       console.error("Error saving settings:", chrome.runtime.lastError);
-      showStatus(
-        "Error saving settings! " + chrome.runtime.lastError.message,
-        true
-      );
+      showStatus("Error saving settings! " + chrome.runtime.lastError.message, true);
     } else {
       console.log("Settings saved:", settingsToSave);
       showStatus("Settings saved successfully!");
