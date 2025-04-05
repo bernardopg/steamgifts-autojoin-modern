@@ -14,6 +14,24 @@ const TIME_PERIODS = {
   NIGHT: { start: 0, end: 6, name: 'night' },
 };
 
+// Default settings constants
+const DEFAULT_SETTINGS = {
+  // Join timing settings
+  JOIN_DELAY_MIN: 2000, // 2 seconds
+  JOIN_DELAY_MAX: 3000, // 3 seconds
+  MINIMUM_ALLOWED_DELAY: 500, // 0.5 seconds absolute minimum
+
+  // Default point buffer - keep some points in reserve
+  POINT_BUFFER: 50,
+  
+  // Conservative entry limit threshold
+  ENTRY_LIMIT_THRESHOLD: 5000,
+  
+  // Reasonable cost limits
+  MAX_COST: 100,
+  MIN_COST: 10
+};
+
 // Point spending strategies and their multipliers
 const SPENDING_STRATEGIES = {
   CONSERVATIVE: { id: 'conservative', multiplier: 1.2 }, // Increase buffer by 20%
@@ -30,17 +48,21 @@ const state = {
   autoModeEnabled: false,
   sessionJoinCount: 0,
   xsrfToken: null,
+  
+  // Join timing (with more conservative defaults)
+  joinDelayMin: DEFAULT_SETTINGS.JOIN_DELAY_MIN,
+  joinDelayMax: DEFAULT_SETTINGS.JOIN_DELAY_MAX,
 
   // Points and cost settings
-  pointBuffer: 0,
-  maxCost: 100,
-  minCost: 0,
+  pointBuffer: DEFAULT_SETTINGS.POINT_BUFFER,
+  maxCost: DEFAULT_SETTINGS.MAX_COST,
+  minCost: DEFAULT_SETTINGS.MIN_COST,
   dynamicPointBuffer: false,
   pointsToPreserve: {
-    morning: 0, // 6am - 12pm
-    afternoon: 0, // 12pm - 6pm
-    evening: 0, // 6pm - 12am
-    night: 0, // 12am - 6am
+    morning: 50, // 6am - 12pm
+    afternoon: 50, // 12pm - 6pm
+    evening: 50, // 6pm - 12am
+    night: 50, // 12am - 6am
   },
   pointSpendingStrategy: SPENDING_STRATEGIES.BALANCED.id,
 
@@ -48,12 +70,12 @@ const state = {
   maxLevel: 10,
   minLevel: 0,
 
-  // Filter settings
-  wishlistOnly: false,
-  skipGroups: false,
+  // Filter settings (more conservative defaults)
+  wishlistOnly: true, // Default to wishlist-only for safety
+  skipGroups: true, // Default to skipping group giveaways
   skipOwned: true,
-  skipEntryLimited: false,
-  entryLimitThreshold: 100,
+  skipEntryLimited: true,
+  entryLimitThreshold: DEFAULT_SETTINGS.ENTRY_LIMIT_THRESHOLD,
   sortByEndingSoon: false,
   endingSoonThreshold: 60, // minutes
 
@@ -156,6 +178,10 @@ export function isAutoModeEnabled() { return state.autoModeEnabled; }
 export function getSessionJoinCount() { return state.sessionJoinCount; }
 export function getXsrfToken() { return state.xsrfToken; }
 
+// Join delay getters
+export function getJoinDelayMin() { return state.joinDelayMin; }
+export function getJoinDelayMax() { return state.joinDelayMax; }
+
 export function getPointBuffer() {
   if (state.dynamicPointBuffer) {
     const timePeriod = getCurrentTimePeriod();
@@ -193,6 +219,26 @@ export function setAutoModeEnabled(value) { state.autoModeEnabled = !!value; }
 export function setSessionJoinCount(value) { state.sessionJoinCount = value; }
 export function incrementSessionJoinCount() { state.sessionJoinCount++; }
 export function setXsrfToken(value) { state.xsrfToken = value; }
+
+/**
+ * Set minimum join delay with validation
+ * @param {number|string} value - The delay value in milliseconds
+ */
+export function setJoinDelayMin(value) {
+  const numValue = typeof value === 'number' ? value : parseInt(value, 10) || DEFAULT_SETTINGS.JOIN_DELAY_MIN;
+  // Enforce minimum delay for safety
+  state.joinDelayMin = Math.max(numValue, DEFAULT_SETTINGS.MINIMUM_ALLOWED_DELAY);
+}
+
+/**
+ * Set maximum join delay with validation
+ * @param {number|string} value - The delay value in milliseconds
+ */
+export function setJoinDelayMax(value) {
+  const numValue = typeof value === 'number' ? value : parseInt(value, 10) || DEFAULT_SETTINGS.JOIN_DELAY_MAX;
+  // Enforce minimum delay and ensure max >= min
+  state.joinDelayMax = Math.max(numValue, state.joinDelayMin, DEFAULT_SETTINGS.MINIMUM_ALLOWED_DELAY);
+}
 
 export function setPointBuffer(value) {
   state.pointBuffer = typeof value === 'number' ? value : parseInt(value, 10) || 0;

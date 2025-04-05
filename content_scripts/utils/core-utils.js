@@ -94,16 +94,63 @@ export function getCurrentPoints() {
  */
 export function getXsrfTokenFromPage() {
   try {
+    // Try to find the token in the main form
     const tokenInput = document.querySelector(SELECTORS.FORM.XSRF_TOKEN);
     if (tokenInput?.value) { 
+      info('Found XSRF token in form');
       return tokenInput.value; 
+    }
+    
+    // Fallback: try to extract from script tags (sometimes tokens are set in JavaScript)
+    const scripts = document.querySelectorAll('script');
+    for (const script of scripts) {
+      if (script.textContent?.includes('xsrf_token')) {
+        const match = script.textContent.match(/xsrf_token\s*=\s*['"]([a-zA-Z0-9]+)['"]/);
+        if (match && match[1]) {
+          info('Found XSRF token in script tag');
+          return match[1];
+        }
+      }
+    }
+    
+    // Fallback: try to extract from meta tags
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    if (metaToken?.getAttribute('content')) {
+      info('Found XSRF token in meta tag');
+      return metaToken.getAttribute('content');
     }
   } catch (e) {
     error('Error retrieving XSRF token:', e);
   }
   
-  error('XSRF Token input not found with selector:', SELECTORS.FORM.XSRF_TOKEN);
+  error('XSRF Token not found on page. This could indicate you are logged out or the page structure has changed.');
   return null;
+}
+
+/**
+ * Check if the user is logged in based on page elements
+ * @returns {boolean} True if user appears to be logged in
+ */
+export function isUserLoggedIn() {
+  try {
+    // Check for presence of points display (only visible when logged in)
+    const pointsElement = document.querySelector(SELECTORS.NAV.POINTS);
+    if (pointsElement) return true;
+    
+    // Check for avatar/username (only visible when logged in)
+    const avatarElement = document.querySelector(SELECTORS.NAV.USERNAME);
+    if (avatarElement) return true;
+    
+    // Check for login elements (only visible when NOT logged in)
+    const loginButton = document.querySelector('.nav__sits');
+    if (loginButton) return false;
+    
+    // Default to false if we can't be sure
+    return false;
+  } catch (e) {
+    error('Error checking login status:', e);
+    return false;
+  }
 }
 
 /**

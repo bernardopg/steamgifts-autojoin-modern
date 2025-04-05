@@ -2,6 +2,9 @@
 
 A modernized browser extension to assist with SteamGifts giveaways with manual and automatic AJAX joining and advanced filtering.
 
+> **⚠️ IMPORTANT: Terms of Service Warning ⚠️**  
+> Using this extension for automation may violate SteamGifts' Terms of Service. Excessive or aggressive automation could lead to account warnings or permanent suspension. Users assume all risk associated with using this extension. This tool is provided for educational purposes only, and you are responsible for using it in a respectful manner that doesn't negatively impact the SteamGifts community or site performance.
+
 ## Features
 
 - Manual AJAX joining of giveaways without page reload

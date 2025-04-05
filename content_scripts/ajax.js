@@ -1,15 +1,41 @@
-import * as Selectors from './selectors.js';
+import { SELECTORS } from './selectors.js';
 import * as State from './state.js';
 import * as Utils from './utils.js';
 import { updateStatsPanel } from './ui.js';
 
+// Constants for HTTP request handling
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY = 3000; // 3 seconds
+const TRANSIENT_ERROR_CODES = [408, 429, 500, 502, 503, 504]; // Status codes to retry
+
 // Track stats for the current session
 let sessionStats = {
+  // Join statistics
   joined: 0,
   failed: 0,
   skipped: 0,
+  
+  // Point statistics
   pointsSpent: 0,
-  costs: []
+  pointsSaved: 0, // Points preserved due to settings
+  costs: [],
+  
+  // Filtering statistics
+  wishlistJoined: 0,
+  skipReasons: {
+    notEnoughPoints: 0,
+    levelTooHigh: 0,
+    levelTooLow: 0,
+    entryLimited: 0,
+    groupGiveaway: 0,
+    blacklisted: 0,
+    owned: 0,
+    alreadyEntered: 0
+  },
+  
+  // Time data
+  startTime: Date.now(),
+  lastJoinTime: null
 };
 
 /**
@@ -59,17 +85,67 @@ export async function attemptAjaxJoin(code, cost, giveawayElement, buttonElement
   let alreadyEntered = false;
 
   try {
-    const response = await fetch("/ajax.php", { 
-      method: "POST", 
-      headers: { 
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", 
-        "X-Requested-With": "XMLHttpRequest" 
-      }, 
-      body: formData 
-    });
+    let response, result;
+    let retryCount = 0;
+    let shouldRetry = false;
     
-    const result = await response.json();
-    console.log("  -> AJAX Response:", result);
+    // Retry loop for transient errors
+    do {
+      if (retryCount > 0) {
+        const waitTime = RETRY_DELAY * retryCount;
+        console.log(`  -> Retry attempt ${retryCount}/${MAX_RETRY_ATTEMPTS} after ${waitTime/1000}s delay...`);
+        
+        // Show retry feedback
+        if (buttonElement) {
+          buttonElement.innerHTML = `<i class="fas fa-sync fa-spin"></i> Retry ${retryCount}/${MAX_RETRY_ATTEMPTS}...`;
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+      
+      try {
+        response = await fetch("/ajax.php", { 
+          method: "POST", 
+          headers: { 
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", 
+            "X-Requested-With": "XMLHttpRequest" 
+          }, 
+          body: formData,
+          // Add timeout to prevent hanging requests
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+        
+        result = await response.json();
+        console.log("  -> AJAX Response:", result);
+        
+        // Determine if we should retry based on status code
+        shouldRetry = TRANSIENT_ERROR_CODES.includes(response.status);
+        
+        // If we got a valid response, don't retry
+        if (response.ok) {
+          shouldRetry = false;
+        }
+      } catch (fetchError) {
+        console.error(`  -> Fetch error (attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS + 1}):`, fetchError);
+        
+        // Determine if error is retryable (network errors usually are)
+        shouldRetry = fetchError.name !== 'AbortError' && // Don't retry timeouts
+                      (fetchError instanceof TypeError || // Network errors are usually TypeError
+                       fetchError.message.includes('network') ||
+                       fetchError.message.includes('connection'));
+        
+        // Create a placeholder result
+        result = { type: "error", msg: fetchError.message };
+      }
+      
+      retryCount++;
+    } while (shouldRetry && retryCount <= MAX_RETRY_ATTEMPTS);
+    
+    // Log if we exhausted retries
+    if (shouldRetry && retryCount > MAX_RETRY_ATTEMPTS) {
+      console.error(`  -> Exhausted ${MAX_RETRY_ATTEMPTS} retry attempts`);
+    }
 
     // Handle response status
     if (!response.ok) {
@@ -103,13 +179,13 @@ export async function attemptAjaxJoin(code, cost, giveawayElement, buttonElement
       }
       
       // Update points display on page
-      const pointsDisplay = document.querySelector(Selectors.pointsSelector);
+      const pointsDisplay = document.querySelector(SELECTORS.NAV.POINTS);
       if (pointsDisplay && State.getPointsAtStart() !== null && State.getPointsAtStart() !== -1) {
         Utils.updateWithFadeAnimation(pointsDisplay, `${State.getPointsAtStart()}P`);
       }
       
       // Show toast notification
-      const gameTitle = giveawayElement.querySelector(Selectors.listView_giveawayLinkSelector)?.textContent?.trim() || 'Giveaway';
+      const gameTitle = giveawayElement.querySelector(SELECTORS.LIST_VIEW.GIVEAWAY_LINK)?.textContent?.trim() || 'Giveaway';
       Utils.showToast(`Successfully joined: ${gameTitle} (${cost}P)`, "success");
       
       // Update the stats panel with new join information
@@ -126,7 +202,7 @@ export async function attemptAjaxJoin(code, cost, giveawayElement, buttonElement
         sessionStats.failed++;
         
         // Show toast for errors
-        const gameTitle = giveawayElement.querySelector(Selectors.listView_giveawayLinkSelector)?.textContent?.trim() || 'Giveaway';
+        const gameTitle = giveawayElement.querySelector(SELECTORS.LIST_VIEW.GIVEAWAY_LINK)?.textContent?.trim() || 'Giveaway';
         Utils.showToast(`Failed to join ${gameTitle}: ${errorMessage}`, "error");
       }
     }
@@ -139,8 +215,8 @@ export async function attemptAjaxJoin(code, cost, giveawayElement, buttonElement
       }
       
       // Mark giveaway as joined
-      giveawayElement.classList.add(Selectors.listView_alreadyJoinedClass);
-      giveawayElement.parentElement?.classList.add(Selectors.listView_alreadyJoinedClass);
+      giveawayElement.classList.add(SELECTORS.LIST_VIEW.ALREADY_JOINED_CLASS);
+      giveawayElement.parentElement?.classList.add(SELECTORS.LIST_VIEW.ALREADY_JOINED_CLASS);
       
       // Add success feedback
       Utils.addVisualFeedbackToGiveaway(giveawayElement, 'success');
@@ -213,9 +289,32 @@ export async function attemptAjaxJoin(code, cost, giveawayElement, buttonElement
     if (typeof result?.points === 'number') {
       console.log("  -> Points updated from AJAX response:", result.points);
       State.setPointsAtStart(result.points);
-      const pointsDisplay = document.querySelector(Selectors.pointsSelector);
+      const pointsDisplay = document.querySelector(SELECTORS.NAV.POINTS);
       if (pointsDisplay) {
         Utils.updateWithFadeAnimation(pointsDisplay, `${result.points}P`);
+      }
+    }
+    
+    // Check for possible CAPTCHA requirement
+    if (result?.msg?.toLowerCase().includes('captcha') || result?.msg?.toLowerCase().includes('verify')) {
+      console.warn("  -> CAPTCHA or verification may be required!");
+      Utils.showToast(
+        "Action Required|CAPTCHA or verification may be needed. Please check SteamGifts manually.", 
+        "warning", 
+        10000
+      );
+      
+      // Pause auto-joining if active
+      if (State.isAutoModeEnabled()) {
+        console.warn("  -> Pausing auto-join due to potential CAPTCHA requirement");
+        State.setAutoModeEnabled(false);
+        
+        // Show prominent notification
+        Utils.showToast(
+          "Auto-Join Paused|Auto-joining has been paused because a CAPTCHA check may be required. Please visit SteamGifts manually to continue.", 
+          "error", 
+          0 // No auto-close
+        );
       }
     }
 
@@ -286,11 +385,32 @@ export function getSessionStats() {
  */
 export function resetSessionStats() {
   sessionStats = {
+    // Join statistics
     joined: 0,
     failed: 0,
     skipped: 0,
+    
+    // Point statistics
     pointsSpent: 0,
-    costs: []
+    pointsSaved: 0,
+    costs: [],
+    
+    // Filtering statistics
+    wishlistJoined: 0,
+    skipReasons: {
+      notEnoughPoints: 0,
+      levelTooHigh: 0,
+      levelTooLow: 0,
+      entryLimited: 0,
+      groupGiveaway: 0,
+      blacklisted: 0,
+      owned: 0,
+      alreadyEntered: 0
+    },
+    
+    // Time data
+    startTime: Date.now(),
+    lastJoinTime: null
   };
 }
 
@@ -303,15 +423,83 @@ export function showSessionStats() {
     ? Math.round((sessionStats.pointsSpent / sessionStats.joined) * 10) / 10 
     : 0;
   
+  // Calculate session duration
+  const sessionDuration = Math.round((Date.now() - sessionStats.startTime) / 1000);
+  const minutes = Math.floor(sessionDuration / 60);
+  const seconds = sessionDuration % 60;
+  const durationText = `${minutes}m ${seconds}s`;
+  
+  // Calculate points per minute
+  const pointsPerMinute = sessionDuration > 0 
+    ? Math.round((sessionStats.pointsSpent / (sessionDuration / 60)) * 10) / 10 
+    : 0;
+  
+  // Get the most common skip reason
+  let topSkipReason = 'None';
+  let topSkipCount = 0;
+  
+  Object.entries(sessionStats.skipReasons).forEach(([reason, count]) => {
+    if (count > topSkipCount) {
+      topSkipCount = count;
+      topSkipReason = reason.replace(/([A-Z])/g, ' $1').toLowerCase();
+      topSkipReason = topSkipReason.charAt(0).toUpperCase() + topSkipReason.slice(1); // Capitalize first letter
+    }
+  });
+  
   // Create message
   const message = `
     <div class="sg-toast-title">Auto-Join Session Stats</div>
     <div class="sg-toast-message">
-      <div>Joined: ${sessionStats.joined} giveaways (${sessionStats.pointsSpent}P)</div>
-      <div>Failed: ${sessionStats.failed}, Skipped: ${sessionStats.skipped}</div>
-      <div>Avg Cost: ${avgCost}P</div>
+      <div class="sg-stats-row">
+        <span class="sg-stats-label">Session Time:</span>
+        <span class="sg-stats-value">${durationText}</span>
+      </div>
+      <div class="sg-stats-row">
+        <span class="sg-stats-label">Joined:</span>
+        <span class="sg-stats-value">${sessionStats.joined} giveaways (${sessionStats.pointsSpent}P)</span>
+      </div>
+      <div class="sg-stats-row">
+        <span class="sg-stats-label">Failed/Skipped:</span>
+        <span class="sg-stats-value">${sessionStats.failed} / ${sessionStats.skipped}</span>
+      </div>
+      <div class="sg-stats-row">
+        <span class="sg-stats-label">Avg Cost:</span>
+        <span class="sg-stats-value">${avgCost}P (${pointsPerMinute}P/min)</span>
+      </div>
+      ${sessionStats.wishlistJoined > 0 ? `
+      <div class="sg-stats-row">
+        <span class="sg-stats-label">Wishlist joined:</span>
+        <span class="sg-stats-value">${sessionStats.wishlistJoined}</span>
+      </div>` : ''}
+      ${topSkipCount > 0 ? `
+      <div class="sg-stats-row">
+        <span class="sg-stats-label">Top skip reason:</span>
+        <span class="sg-stats-value">${topSkipReason} (${topSkipCount})</span>
+      </div>` : ''}
     </div>
   `;
+  
+  // Add CSS for stat rows
+  const style = document.createElement('style');
+  style.textContent = `
+    .sg-stats-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .sg-stats-label {
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    .sg-stats-value {
+      font-weight: 600;
+    }
+  `;
+  
+  if (!document.getElementById('sg-stats-style')) {
+    style.id = 'sg-stats-style';
+    document.head.appendChild(style);
+  }
   
   // Show toast with HTML content
   const container = document.getElementById('sg-toast-container') || document.createElement('div');

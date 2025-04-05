@@ -50,3 +50,11 @@ export {
   highlightEndingSoonGiveaways,
   showEntryStats,
 } from './ui-utils.js';
+
+// Wishlist handling utilities
+export {
+  getWishlist,
+  clearWishlistCache,
+  isGameOnWishlist,
+  extractAppId
+} from './wishlist-utils.js';
