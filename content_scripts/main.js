@@ -9,7 +9,7 @@ import * as Selectors from './selectors.js';
 // Constants
 const DELAY_BETWEEN_JOINS_MS = 1500;
 const AUTO_JOIN_INTERVAL_MS = 10000; // 10 seconds between auto-join attempts
-const MAX_JOIN_ATTEMPTS_PER_CYCLE = 3; // Maximum number of join attempts per auto cycle
+let MAX_JOIN_ATTEMPTS_PER_CYCLE = 3; // Maximum number of join attempts per auto cycle
 
 console.log("[SG AutoJoin] Main script loaded with advanced features.");
 
@@ -29,14 +29,19 @@ async function processListViewForAutoJoin() {
     // Ensure styles are injected
     Utils.injectStyles();
     
-    // Apply visual enhancements if enabled
-    if (items.showEntryStats) {
-        Utils.showEntryStats();
-    }
-    
-    if (items.highlightEndingSoon) {
-        Utils.highlightEndingSoonGiveaways();
-    }
+    // Apply visual enhancements
+    chrome.storage.sync.get({
+        showEntryStats: true,
+        highlightEndingSoon: true
+    }, (settings) => {
+        if (settings.showEntryStats) {
+            Utils.showEntryStats();
+        }
+        
+        if (settings.highlightEndingSoon) {
+            Utils.highlightEndingSoonGiveaways();
+        }
+    });
 
     // Create progress indicator
     const progressIndicator = Utils.createProgressIndicator("Starting auto-join cycle...");
