@@ -4,3 +4,9 @@ dist/
 .DS_Store
 Thumbs.db
 .vscode/
+coverage/
+*.log
+*.tgz
+*.zip
+*.bak
+*.tmp

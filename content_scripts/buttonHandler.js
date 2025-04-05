@@ -56,9 +56,22 @@ function addOrUpdateButton(giveawayElement, giveawayCode, cost, passesFilters, f
 
     if (!button) {
         button = document.createElement("button");
-        button.className = `btn btn-sm ${Selectors.manualJoinButtonClass}`;
+        button.className = `sg-btn sg-btn-sm ${Selectors.manualJoinButtonClass}`;
         giveawayElement.appendChild(button);
         button.addEventListener("click", handleManualJoinClick);
+        
+        // Apply custom styling for SteamGifts context
+        button.style.position = 'absolute';
+        button.style.right = '8px';
+        button.style.top = '8px';
+        button.style.zIndex = '5';
+        button.style.fontSize = '12px';
+        button.style.padding = '4px 8px';
+        
+        // Make sure giveaway container has position relative
+        if (window.getComputedStyle(giveawayElement).position === 'static') {
+            giveawayElement.style.position = 'relative';
+        }
     }
 
     button.dataset.code = giveawayCode;
@@ -66,16 +79,22 @@ function addOrUpdateButton(giveawayElement, giveawayCode, cost, passesFilters, f
 
     if (passesFilters) {
         button.disabled = false;
-        button.classList.remove("filtered", "btn-secondary");
-        button.classList.add("btn-success");
+        button.classList.remove("filtered", "sg-btn-secondary", "sg-btn-danger", "sg-btn-warning");
+        button.classList.add("sg-btn-primary");
         button.innerHTML = `<i class="fa fa-plus-circle"></i> Join (${cost}P)`;
         button.title = `Manually join this ${cost}P giveaway`;
+        
+        // Add a subtle animation/highlight for eligible giveaways
+        button.classList.add("sg-fade-in");
     } else {
         button.disabled = true;
-        button.classList.remove("btn-success");
-        button.classList.add("filtered", "btn-secondary");
-        button.innerHTML = `<i class="fa fa-ban"></i> Filtered (${cost}P)`;
+        button.classList.remove("sg-btn-primary", "sg-btn-success");
+        button.classList.add("filtered", "sg-btn-secondary");
+        button.innerHTML = `<i class="fa fa-ban"></i> Filtered`;
         button.title = filterReason || `Filtered out by your settings (${cost}P)`;
+        
+        // Make the button more subtle
+        button.style.opacity = '0.7';
     }
 }
 

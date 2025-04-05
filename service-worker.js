@@ -15,8 +15,18 @@ function initializeSessionCount() {
 chrome.runtime.onInstalled.addListener((details) => {
   console.log(`SG AutoJoin Extension ${details.reason}. Setting defaults.`);
   chrome.storage.sync.set({
+    // General
     autoJoinEnabled: false,
     autoModeEnabled: false,
+    joinOnPageLoad: true,
+    joinInterval: 10,
+    maxJoinsPerCycle: 3,
+    showJoinNotifications: true,
+    showErrorNotifications: true,
+    notificationDuration: 5,
+    enableKeyboardShortcuts: true,
+    
+    // Filters
     pointBuffer: 0,
     maxCost: 100,
     minCost: 0,
@@ -26,6 +36,21 @@ chrome.runtime.onInstalled.addListener((details) => {
     skipOwned: true,
     blacklistKeywords: "",
     whitelistKeywords: "",
+    
+    // Accessibility
+    highContrastMode: false,
+    largeFontMode: false,
+    keyboardFocusMode: false,
+    animationSpeed: 1,
+    persistentNotifications: false,
+    audioFeedback: false,
+    audioVolume: 70,
+    
+    // Statistics
+    totalJoins: 0,
+    successfulJoins: 0,
+    pointsSpent: 0,
+    joinHistory: []
   });
   initializeSessionCount();
   console.log("SG AutoJoin Default settings applied.");
@@ -60,5 +85,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
              }
         });
         return true;
+    } else if (message.action === "openOptionsPage") {
+        // Open the options page
+        chrome.runtime.openOptionsPage();
     }
 });
