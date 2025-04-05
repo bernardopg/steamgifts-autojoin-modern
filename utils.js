@@ -33,7 +33,7 @@ if (document.readyState === 'loading') {
  */
 export function showToast(message, type = 'info', options = {}) {
   const { title, duration = 5000, dismissible = true } = options;
-  
+
   // Limit the number of toasts
   if (toastCount >= MAX_TOASTS) {
     const oldestToast = toastContainer.firstChild;
@@ -42,18 +42,18 @@ export function showToast(message, type = 'info', options = {}) {
       toastCount--;
     }
   }
-  
+
   // Create the toast element
   const toast = document.createElement('div');
   toast.className = `sg-toast sg-toast-${type}`;
   toast.setAttribute('role', 'alert');
-  
+
   // Set up the toast icon based on type
   let iconClass = 'fa-info-circle';
   if (type === 'success') iconClass = 'fa-check-circle';
   if (type === 'error') iconClass = 'fa-exclamation-circle';
   if (type === 'warning') iconClass = 'fa-exclamation-triangle';
-  
+
   // Build the toast content
   toast.innerHTML = `
     <div class="sg-toast-icon">
@@ -63,12 +63,12 @@ export function showToast(message, type = 'info', options = {}) {
       ${title ? `<div class="sg-toast-title">${title}</div>` : ''}
       <div class="sg-toast-message">${message}</div>
     </div>
-    ${dismissible ? `<button class="sg-toast-close" aria-label="Close">&times;</button>` : ''}
+    ${dismissible ? '<button class="sg-toast-close" aria-label="Close">&times;</button>' : ''}
     <div class="sg-toast-progress">
       <div class="sg-toast-progress-bar"></div>
     </div>
   `;
-  
+
   // Add dismiss functionality
   if (dismissible) {
     const closeBtn = toast.querySelector('.sg-toast-close');
@@ -76,20 +76,20 @@ export function showToast(message, type = 'info', options = {}) {
       removeToast(toast);
     });
   }
-  
+
   // Add to the container
   toastContainer.appendChild(toast);
   toastCount++;
-  
+
   // Set up auto-dismiss
   const progressBar = toast.querySelector('.sg-toast-progress-bar');
   progressBar.style.animationDuration = `${duration}ms`;
-  
+
   // Schedule removal
   setTimeout(() => {
     removeToast(toast);
   }, duration);
-  
+
   return toast;
 }
 
@@ -98,7 +98,7 @@ function removeToast(toast) {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(100%)';
     toast.style.transition = 'opacity 300ms, transform 300ms';
-    
+
     setTimeout(() => {
       if (toastContainer.contains(toast)) {
         toastContainer.removeChild(toast);
@@ -117,7 +117,7 @@ function removeToast(toast) {
  */
 export function updateProgressIndicator(elementId, value, text, type = 'primary') {
   let progressElement = document.getElementById(elementId);
-  
+
   if (!progressElement) {
     progressElement = document.createElement('div');
     progressElement.id = elementId;
@@ -128,7 +128,7 @@ export function updateProgressIndicator(elementId, value, text, type = 'primary'
         <span class="sg-progress-text">${text}</span>
       </div>
     `;
-    
+
     // Find a suitable container, or append to body
     const container = document.querySelector('.sg-progress-container') || document.body;
     container.appendChild(progressElement);
@@ -137,11 +137,11 @@ export function updateProgressIndicator(elementId, value, text, type = 'primary'
     progressBar.style.width = `${value}%`;
     progressBar.setAttribute('aria-valuenow', value);
     progressElement.querySelector('.sg-progress-text').textContent = text;
-    
+
     // Update the type if it's changed
     progressBar.className = `sg-progress-bar sg-progress-bar-${type}`;
   }
-  
+
   return progressElement;
 }
 
@@ -152,10 +152,10 @@ export function updateProgressIndicator(elementId, value, text, type = 'primary'
  */
 export function formatNumber(num) {
   if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M';
+    return `${(num / 1000000).toFixed(1)}M`;
   }
   if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
+    return `${(num / 1000).toFixed(1)}K`;
   }
   return num.toString();
 }
@@ -169,28 +169,28 @@ export function formatNumber(num) {
  */
 export function createBadge(text, type = 'primary', options = {}) {
   const { tooltip, pulse } = options;
-  
+
   const badge = document.createElement('span');
   badge.className = `sg-badge sg-badge-${type}`;
   badge.textContent = text;
-  
+
   if (pulse) {
     badge.classList.add('sg-pulse');
   }
-  
+
   if (tooltip) {
     const tooltipWrapper = document.createElement('div');
     tooltipWrapper.className = 'sg-tooltip';
     tooltipWrapper.appendChild(badge);
-    
+
     const tooltipText = document.createElement('span');
     tooltipText.className = 'sg-tooltip-text';
     tooltipText.textContent = tooltip;
     tooltipWrapper.appendChild(tooltipText);
-    
+
     return tooltipWrapper;
   }
-  
+
   return badge;
 }
 
@@ -204,9 +204,9 @@ export function setHighContrastMode(enabled) {
   } else {
     document.body.classList.remove('sg-high-contrast');
   }
-  
+
   // Save preference
-  chrome.storage.sync.set({ 'accessibilityHighContrast': enabled });
+  chrome.storage.sync.set({ accessibilityHighContrast: enabled });
 }
 
 /**
@@ -219,9 +219,9 @@ export function setLargeFontMode(enabled) {
   } else {
     document.body.classList.remove('sg-font-large');
   }
-  
+
   // Save preference
-  chrome.storage.sync.set({ 'accessibilityLargeFont': enabled });
+  chrome.storage.sync.set({ accessibilityLargeFont: enabled });
 }
 
 /**
@@ -234,9 +234,9 @@ export function setKeyboardFocusVisible(enabled) {
   } else {
     document.body.classList.remove('sg-keyboard-focus-visible');
   }
-  
+
   // Save preference
-  chrome.storage.sync.set({ 'accessibilityKeyboardFocus': enabled });
+  chrome.storage.sync.set({ accessibilityKeyboardFocus: enabled });
 }
 
 /**
@@ -245,9 +245,9 @@ export function setKeyboardFocusVisible(enabled) {
 export function loadAccessibilitySettings() {
   chrome.storage.sync.get(
     {
-      'accessibilityHighContrast': false,
-      'accessibilityLargeFont': false,
-      'accessibilityKeyboardFocus': false
+      accessibilityHighContrast: false,
+      accessibilityLargeFont: false,
+      accessibilityKeyboardFocus: false,
     },
     (items) => {
       if (items.accessibilityHighContrast) {
@@ -259,7 +259,7 @@ export function loadAccessibilitySettings() {
       if (items.accessibilityKeyboardFocus) {
         document.body.classList.add('sg-keyboard-focus-visible');
       }
-    }
+    },
   );
 }
 
@@ -278,7 +278,7 @@ if (document.readyState === 'loading') {
  */
 export function debounce(func, wait) {
   let timeout;
-  return function(...args) {
+  return function (...args) {
     const context = this;
     clearTimeout(timeout);
     timeout = setTimeout(() => func.apply(context, args), wait);
@@ -291,17 +291,17 @@ export function debounce(func, wait) {
  * @param {object} settings - Settings to save
  */
 export function saveSettingsProfile(profileName, settings) {
-  chrome.storage.sync.get({ 'settingsProfiles': {} }, (data) => {
+  chrome.storage.sync.get({ settingsProfiles: {} }, (data) => {
     const profiles = data.settingsProfiles || {};
     profiles[profileName] = {
       ...settings,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-    
-    chrome.storage.sync.set({ 'settingsProfiles': profiles }, () => {
+
+    chrome.storage.sync.set({ settingsProfiles: profiles }, () => {
       if (chrome.runtime.lastError) {
-        showToast('Error saving profile', 'error', { 
-          title: 'Profile Error'
+        showToast('Error saving profile', 'error', {
+          title: 'Profile Error',
         });
       } else {
         showToast(`Profile "${profileName}" saved`, 'success');
@@ -317,15 +317,15 @@ export function saveSettingsProfile(profileName, settings) {
  */
 export function loadSettingsProfile(profileName) {
   return new Promise((resolve, reject) => {
-    chrome.storage.sync.get({ 'settingsProfiles': {} }, (data) => {
+    chrome.storage.sync.get({ settingsProfiles: {} }, (data) => {
       const profiles = data.settingsProfiles || {};
       const profile = profiles[profileName];
-      
+
       if (!profile) {
         reject(new Error(`Profile "${profileName}" not found`));
         return;
       }
-      
+
       resolve(profile);
     });
   });
@@ -337,7 +337,7 @@ export function loadSettingsProfile(profileName) {
  */
 export function getSettingsProfiles() {
   return new Promise((resolve) => {
-    chrome.storage.sync.get({ 'settingsProfiles': {} }, (data) => {
+    chrome.storage.sync.get({ settingsProfiles: {} }, (data) => {
       resolve(data.settingsProfiles || {});
     });
   });

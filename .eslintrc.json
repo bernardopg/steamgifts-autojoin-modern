@@ -1,0 +1,18 @@
+{
+  "extends": "airbnb-base",
+  "env": {
+    "browser": true,
+    "jest": true,
+    "webextensions": true
+  },
+  "rules": {
+    "no-console": "off",
+    "import/extensions": "off",
+    "max-len": ["error", { "code": 100 }],
+    "no-param-reassign": ["error", { "props": false }],
+    "func-names": "off"
+  },
+  "globals": {
+    "chrome": "readonly"
+  }
+}
