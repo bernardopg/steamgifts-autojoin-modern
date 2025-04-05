@@ -4,7 +4,8 @@
   "description": "Modernized extension to assist with SteamGifts giveaways with manual and automatic AJAX joining and advanced filtering.",
   "scripts": {
     "dev": "parcel watch --dist-dir dist --no-cache",
-    "build": "parcel build --dist-dir dist --no-cache --no-source-maps",
+    "build": "parcel build --dist-dir dist",
+    "dist": "parcel build --dist-dir dist --no-optimize --no-scope-hoist",
     "test": "jest"
   },
   "source": "manifest.json",

@@ -93,6 +93,7 @@ export function setEntryLimitThreshold(value) { _currentEntryLimitThreshold = va
 
 export function isSortByEndingSoonEnabled() { return _currentSortByEndingSoon; }
 export function setSortByEndingSoon(value) { _currentSortByEndingSoon = value; }
+export function shouldSortByEndingSoon() { return _currentSortByEndingSoon; }
 
 export function getEndingSoonThreshold() { return _currentEndingSoonThreshold; }
 export function setEndingSoonThreshold(value) { _currentEndingSoonThreshold = value; }
