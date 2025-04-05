@@ -748,6 +748,74 @@ export function injectStyles() {
       animation: sg-pulse 1s infinite;
     }
     
+    /* Stats Panel Styles */
+    .sg-stats-panel {
+      width: 100%;
+      background-color: #f8f9fa;
+      border-bottom: 1px solid #e5e5e5;
+      margin-bottom: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .sg-stats-header {
+      padding: 10px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      color: #1C769E;
+      background-color: #edf4f7;
+      border-bottom: 1px solid #dce7ec;
+    }
+    
+    .sg-stats-toggle {
+      background: none;
+      border: none;
+      color: #1C769E;
+      cursor: pointer;
+      padding: 5px;
+    }
+    
+    .sg-stats-toggle:hover {
+      color: #0f5a7a;
+    }
+    
+    .sg-stats-content {
+      padding: 15px;
+    }
+    
+    .sg-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 15px;
+    }
+    
+    .sg-stat-item {
+      text-align: center;
+      padding: 10px;
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: all 0.2s ease;
+    }
+    
+    .sg-stat-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .sg-stat-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #1C769E;
+      margin-bottom: 5px;
+    }
+    
+    .sg-stat-label {
+      font-size: 0.8rem;
+      color: #707475;
+    }
+    
     /* Toast notification */
     .sg-toast {
       min-width: 250px;

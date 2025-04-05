@@ -1,6 +1,7 @@
 import * as Selectors from './selectors.js';
 import * as State from './state.js';
 import * as Utils from './utils.js';
+import { updateStatsPanel } from './ui.js';
 
 // Track stats for the current session
 let sessionStats = {
@@ -110,6 +111,9 @@ export async function attemptAjaxJoin(code, cost, giveawayElement, buttonElement
       // Show toast notification
       const gameTitle = giveawayElement.querySelector(Selectors.listView_giveawayLinkSelector)?.textContent?.trim() || 'Giveaway';
       Utils.showToast(`Successfully joined: ${gameTitle} (${cost}P)`, "success");
+      
+      // Update the stats panel with new join information
+      updateStatsPanel();
     } else {
       console.warn(`  -> AJAX Non-Success. Type: ${result.type}. Msg: ${result.msg || 'N/A'}`);
       errorMessage = result?.msg || `Unknown non-success (${result.type})`;

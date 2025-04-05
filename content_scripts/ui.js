@@ -140,9 +140,239 @@ export function updateIndicatorUI(isEnabled) {
   }
 }
 
+/**
+ * Creates and injects a stats panel below the navbar
+ */
+export function createStatsPanel() {
+  // Check if panel already exists
+  if (document.getElementById('sg-autojoin-stats-panel')) return;
+  
+  // Find navbar to insert after
+  const navbar = document.querySelector('.nav__button-container');
+  if (!navbar) {
+    console.warn("[SG AutoJoin] Could not find navbar to insert stats panel");
+    return;
+  }
+  
+  // Create stats panel container
+  const statsPanel = document.createElement('div');
+  statsPanel.id = 'sg-autojoin-stats-panel';
+  statsPanel.className = 'sg-stats-panel';
+  
+  // Load stats data from storage
+  chrome.storage.sync.get({
+    totalJoins: 0,
+    successfulJoins: 0,
+    pointsSpent: 0,
+    joinHistory: [],
+    totalWins: 0,
+    lastWin: null,
+    todayJoins: 0,
+    sessionPoints: 0
+  }, (stats) => {
+    // Parse data from user profile page if available
+    const additionalStats = parseUserStats();
+    
+    // Calculate derived stats
+    const successRate = stats.totalJoins > 0 
+      ? Math.round((stats.successfulJoins / stats.totalJoins) * 100) 
+      : 0;
+    
+    const averageCost = stats.successfulJoins > 0 
+      ? Math.round(stats.pointsSpent / stats.successfulJoins) 
+      : 0;
+    
+    // Today's joins count
+    const today = new Date().setHours(0,0,0,0);
+    const todayJoins = stats.joinHistory.filter(join => 
+      new Date(join.date).setHours(0,0,0,0) === today
+    ).length;
+    
+    // Build panel content
+    statsPanel.innerHTML = `
+      <div class="sg-stats-header">
+        <i class="fa fa-chart-bar"></i> SteamGifts AutoJoin Stats
+        <button class="sg-stats-toggle" title="Toggle stats panel">
+          <i class="fa fa-chevron-up"></i>
+        </button>
+      </div>
+      <div class="sg-stats-content">
+        <div class="sg-stats-grid">
+          <div class="sg-stat-item">
+            <div class="sg-stat-value">${stats.totalJoins}</div>
+            <div class="sg-stat-label">Total Joins</div>
+          </div>
+          <div class="sg-stat-item">
+            <div class="sg-stat-value">${todayJoins}</div>
+            <div class="sg-stat-label">Today's Joins</div>
+          </div>
+          <div class="sg-stat-item">
+            <div class="sg-stat-value">${successRate}%</div>
+            <div class="sg-stat-label">Success Rate</div>
+          </div>
+          <div class="sg-stat-item">
+            <div class="sg-stat-value">${stats.pointsSpent}P</div>
+            <div class="sg-stat-label">Points Spent</div>
+          </div>
+          <div class="sg-stat-item">
+            <div class="sg-stat-value">${averageCost}P</div>
+            <div class="sg-stat-label">Avg Cost</div>
+          </div>
+          <div class="sg-stat-item">
+            <div class="sg-stat-value">${additionalStats.totalWins || 0}</div>
+            <div class="sg-stat-label">Total Wins</div>
+          </div>
+          <div class="sg-stat-item">
+            <div class="sg-stat-value">${additionalStats.contributorLevel || '-'}</div>
+            <div class="sg-stat-label">Level</div>
+          </div>
+          <div class="sg-stat-item">
+            <div class="sg-stat-value">${additionalStats.contributorValue || '-'}</div>
+            <div class="sg-stat-label">CV</div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Insert after navbar
+    navbar.parentNode.insertBefore(statsPanel, navbar.nextSibling);
+    
+    // Add toggle functionality
+    const toggleBtn = statsPanel.querySelector('.sg-stats-toggle');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        const content = statsPanel.querySelector('.sg-stats-content');
+        const isOpen = content.style.display !== 'none';
+        
+        // Toggle content
+        content.style.display = isOpen ? 'none' : 'block';
+        
+        // Toggle icon
+        toggleBtn.innerHTML = isOpen 
+          ? '<i class="fa fa-chevron-down"></i>' 
+          : '<i class="fa fa-chevron-up"></i>';
+        
+        // Save state
+        chrome.storage.sync.set({ statsPanelOpen: !isOpen });
+      });
+      
+      // Set initial state
+      chrome.storage.sync.get({ statsPanelOpen: true }, (data) => {
+        if (!data.statsPanelOpen) {
+          toggleBtn.click();
+        }
+      });
+    }
+  });
+}
+
+/**
+ * Parse user stats from profile page
+ * @returns {Object} Stats extracted from user profile
+ */
+function parseUserStats() {
+  const stats = {
+    totalWins: 0,
+    contributorLevel: null,
+    contributorValue: null
+  };
+  
+  // Extract total wins if on profile page
+  const winsElement = document.querySelector('.featured__table__row__right');
+  if (winsElement && winsElement.textContent) {
+    const winsText = winsElement.textContent.trim();
+    const winsMatch = winsText.match(/(\d+)/);
+    if (winsMatch && winsMatch[1]) {
+      stats.totalWins = parseInt(winsMatch[1], 10);
+    }
+  }
+  
+  // Extract contributor level and value
+  const levelElement = document.querySelector('.featured__contributor-level');
+  if (levelElement && levelElement.textContent) {
+    const levelText = levelElement.textContent.trim();
+    const levelMatch = levelText.match(/Level\s*(\d+)/i);
+    if (levelMatch && levelMatch[1]) {
+      stats.contributorLevel = parseInt(levelMatch[1], 10);
+    }
+  }
+  
+  const cvElement = document.querySelector('.featured__contributor-value');
+  if (cvElement && cvElement.textContent) {
+    const cvText = cvElement.textContent.trim();
+    const cvMatch = cvText.match(/\$(\d+\.\d+)/);
+    if (cvMatch && cvMatch[1]) {
+      stats.contributorValue = cvMatch[1];
+    }
+  }
+  
+  return stats;
+}
+
+/**
+ * Update the stats panel with new information
+ */
+export function updateStatsPanel() {
+  const statsPanel = document.getElementById('sg-autojoin-stats-panel');
+  if (!statsPanel) {
+    createStatsPanel();
+    return;
+  }
+  
+  // Update the values in the existing panel
+  chrome.storage.sync.get({
+    totalJoins: 0,
+    successfulJoins: 0,
+    pointsSpent: 0,
+    joinHistory: [],
+    totalWins: 0
+  }, (stats) => {
+    // Today's joins
+    const today = new Date().setHours(0,0,0,0);
+    const todayJoins = stats.joinHistory.filter(join => 
+      new Date(join.date).setHours(0,0,0,0) === today
+    ).length;
+    
+    // Success rate
+    const successRate = stats.totalJoins > 0 
+      ? Math.round((stats.successfulJoins / stats.totalJoins) * 100) 
+      : 0;
+    
+    // Average cost
+    const averageCost = stats.successfulJoins > 0 
+      ? Math.round(stats.pointsSpent / stats.successfulJoins) 
+      : 0;
+    
+    // Update displayed values
+    updateStatValue(statsPanel, 'Total Joins', stats.totalJoins);
+    updateStatValue(statsPanel, "Today's Joins", todayJoins);
+    updateStatValue(statsPanel, 'Success Rate', `${successRate}%`);
+    updateStatValue(statsPanel, 'Points Spent', `${stats.pointsSpent}P`);
+    updateStatValue(statsPanel, 'Avg Cost', `${averageCost}P`);
+  });
+}
+
+/**
+ * Helper to update specific stat value in panel
+ */
+function updateStatValue(panel, label, value) {
+  const items = panel.querySelectorAll('.sg-stat-item');
+  for (const item of items) {
+    const labelEl = item.querySelector('.sg-stat-label');
+    if (labelEl && labelEl.textContent === label) {
+      const valueEl = item.querySelector('.sg-stat-value');
+      if (valueEl) {
+        valueEl.textContent = value;
+      }
+      break;
+    }
+  }
+}
+
 export function initializeIndicator() {
     console.log("[SG AutoJoin] Initializing Indicator UI...");
     createIndicatorElement();
+    createStatsPanel();
     chrome.storage.sync.get("autoJoinEnabled", (data) => {
         const initialEnabledState = !!data.autoJoinEnabled;
         State.setAutoJoinEnabled(initialEnabledState);
