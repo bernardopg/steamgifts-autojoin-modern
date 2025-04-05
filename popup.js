@@ -1,5 +1,19 @@
 import { showToast, setHighContrastMode, setLargeFontMode, setKeyboardFocusVisible } from './utils.js';
 
+// Function to apply theme to document
+function applyTheme(theme) {
+  // Remove any existing theme
+  document.body.removeAttribute('data-theme');
+  document.body.classList.remove('sg-high-contrast');
+  
+  // Apply selected theme
+  if (theme === 'contrast') {
+    document.body.classList.add('sg-high-contrast');
+  } else if (theme !== 'default') {
+    document.body.setAttribute('data-theme', theme);
+  }
+}
+
 // Elements
 const enableSwitch = document.getElementById("enableSwitch");
 const autoModeSwitch = document.getElementById("autoModeSwitch");
@@ -19,6 +33,24 @@ const helpBtn = document.getElementById("helpBtn");
 const quickSettingsPanel = document.getElementById("quickSettingsPanel");
 const statsPanel = document.getElementById("statsPanel");
 const accessibilityPanel = document.getElementById("accessibilityPanel");
+const themePanel = document.createElement("div");
+themePanel.id = "themePanel";
+themePanel.className = "sg-card";
+themePanel.style.display = "none";
+themePanel.innerHTML = `
+  <div class="sg-card-header">Theme Settings</div>
+  <div class="sg-card-body">
+    <div class="theme-selector">
+      <div class="theme-option theme-default" data-theme="default" title="Default Theme"></div>
+      <div class="theme-option theme-dark" data-theme="dark" title="Dark Theme"></div>
+      <div class="theme-option theme-steam" data-theme="steam" title="Steam Theme"></div>
+      <div class="theme-option theme-mint" data-theme="mint" title="Mint Theme"></div>
+      <div class="theme-option theme-contrast" data-theme="contrast" title="High Contrast"></div>
+    </div>
+    <p class="sg-form-text sg-mt-2 sg-text-center">Select a theme to customize the appearance.</p>
+  </div>
+`;
+document.body.appendChild(themePanel);
 
 // Quick settings elements
 const quickMaxCost = document.getElementById("quickMaxCost");
@@ -36,6 +68,19 @@ const statAvgCost = document.getElementById("statAvgCost");
 const highContrastMode = document.getElementById("highContrastMode");
 const largeFontMode = document.getElementById("largeFontMode");
 const keyboardFocusMode = document.getElementById("keyboardFocusMode");
+
+// Theme button and theme options
+const themeBtn = document.createElement("button");
+themeBtn.id = "themeBtn";
+themeBtn.className = "sg-btn sg-btn-sm sg-btn-outline";
+themeBtn.title = "Theme settings";
+themeBtn.innerHTML = '<i class="fa fa-palette"></i>';
+document.querySelector('.footer-actions').appendChild(themeBtn);
+
+// Add some spacing between buttons
+document.querySelector('.footer-actions').style.gap = "10px";
+
+const themeOptions = themePanel.querySelectorAll('.theme-option');
 
 // Statistics tracking
 let statistics = {
@@ -69,7 +114,7 @@ function updatePopupState(state) {
     const pointsValue = (typeof state.points === 'number' && state.points !== -1) ? state.points : null;
     const joinValue = (typeof state.joinCount === 'number') ? state.joinCount : 0;
     
-    currentPointsSpan.textContent = pointsValue !== null ? `${pointsValue}` : "-";
+    currentPointsSpan.textContent = pointsValue !== null ? pointsValue.toString() : "-";
     joinCountSpan.textContent = joinValue;
     
     // Update success rate
@@ -77,6 +122,9 @@ function updatePopupState(state) {
       ? Math.round((statistics.successCount / statistics.totalAttempts) * 100) 
       : 0;
     successRateValueSpan.textContent = `${successRate}%`;
+    
+    // Update status badge
+    updateStatusBadge(state.status || "idle");
     
     // Update stats panel if visible
     if (statsPanel.style.display !== 'none') {
@@ -86,18 +134,19 @@ function updatePopupState(state) {
     currentPointsSpan.textContent = "-";
     joinCountSpan.textContent = "-";
     successRateValueSpan.textContent = "-";
+    updateStatusBadge("unknown");
   }
 }
 
 function updateStatsPanel() {
   statTotalAttempts.textContent = statistics.totalAttempts;
   statSuccessCount.textContent = `${statistics.successCount} (${statistics.totalAttempts > 0 ? Math.round((statistics.successCount / statistics.totalAttempts) * 100) : 0}%)`;
-  statPointsSpent.textContent = `${statistics.pointsSpent}P`;
+  statPointsSpent.textContent = `${statistics.pointsSpent.toString()}P`;
   
   const avgCost = statistics.costHistory.length > 0 
     ? Math.round(statistics.costHistory.reduce((a, b) => a + b, 0) / statistics.costHistory.length) 
     : 0;
-  statAvgCost.textContent = `${avgCost}P`;
+  statAvgCost.textContent = `${avgCost.toString()}P`;
 }
 
 function fetchPopupState() {
@@ -129,6 +178,36 @@ function fetchPopupState() {
 
 // Load settings and statistics
 function loadSettings() {
+  // Add status badge update
+  function updateStatusBadge(status) {
+    const statusBadge = document.getElementById("currentStatusBadge");
+    if (!statusBadge) return;
+    
+    statusBadge.className = "sg-badge sg-ml-1";
+    
+    switch(status) {
+      case "active":
+        statusBadge.textContent = "Active";
+        statusBadge.classList.add("sg-badge-success");
+        break;
+      case "idle":
+        statusBadge.textContent = "Idle";
+        statusBadge.classList.add("sg-badge-info");
+        break;
+      case "error":
+        statusBadge.textContent = "Error";
+        statusBadge.classList.add("sg-badge-danger");
+        break;
+      case "joining":
+        statusBadge.textContent = "Joining";
+        statusBadge.classList.add("sg-badge-warning");
+        break;
+      default:
+        statusBadge.textContent = "Unknown";
+        statusBadge.classList.add("sg-badge-secondary");
+    }
+  }
+
   chrome.storage.sync.get({
     "autoJoinEnabled": false,
     "autoModeEnabled": false,
@@ -138,7 +217,8 @@ function loadSettings() {
     "statistics": null,
     "accessibilityHighContrast": false,
     "accessibilityLargeFont": false,
-    "accessibilityKeyboardFocus": false
+    "accessibilityKeyboardFocus": false,
+    "theme": "default"
   }, (data) => {
     if (chrome.runtime.lastError) {
       console.error("Error loading settings:", chrome.runtime.lastError.message);
@@ -163,6 +243,17 @@ function loadSettings() {
     largeFontMode.checked = !!data.accessibilityLargeFont;
     keyboardFocusMode.checked = !!data.accessibilityKeyboardFocus;
     
+    // Apply theme
+    applyTheme(data.theme || 'default');
+    
+    // Update active theme in theme selector
+    themeOptions.forEach(option => {
+      option.classList.remove('active');
+      if (option.dataset.theme === data.theme) {
+        option.classList.add('active');
+      }
+    });
+    
     // Load statistics if available
     if (data.statistics) {
       statistics = data.statistics;
@@ -175,7 +266,7 @@ function loadSettings() {
 
 // Toggle panel visibility
 function togglePanel(panel) {
-  const allPanels = [quickSettingsPanel, statsPanel, accessibilityPanel];
+  const allPanels = [quickSettingsPanel, statsPanel, accessibilityPanel, themePanel];
   const isCurrentlyVisible = panel.style.display !== 'none';
   
   // Hide all panels
@@ -232,6 +323,9 @@ joinAllVisibleBtn.addEventListener("click", () => {
   joinAllVisibleBtn.disabled = true;
   joinAllVisibleBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Joining...';
   
+  // Update status badge
+  updateStatusBadge("joining");
+  
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id && tabs[0].url?.includes("steamgifts.com")) {
       chrome.tabs.sendMessage(tabs[0].id, { action: "joinAllVisible" }, (response) => {
@@ -240,6 +334,7 @@ joinAllVisibleBtn.addEventListener("click", () => {
           showToast("Could not send command to page", "error", {
             title: "Connection Error"
           });
+          updateStatusBadge("error");
         } else {
           console.log("Join All response:", response);
           
@@ -264,6 +359,11 @@ joinAllVisibleBtn.addEventListener("click", () => {
               joined > 0 ? "success" : "info",
               { title: "Join All Complete" }
             );
+            
+            // Reset status badge to previous state
+            updateStatusBadge(State.isAutoModeEnabled() ? "active" : "idle");
+          } else {
+            updateStatusBadge("error");
           }
         }
         
@@ -277,6 +377,7 @@ joinAllVisibleBtn.addEventListener("click", () => {
       showToast("Not on a SteamGifts page", "warning");
       joinAllVisibleBtn.disabled = false;
       joinAllVisibleBtn.innerHTML = '<i class="fa fa-bolt"></i> Join All Visible';
+      updateStatusBadge("unknown");
     }
   });
 });
@@ -301,6 +402,27 @@ statsBtn.addEventListener("click", () => {
 
 accessibilityBtn.addEventListener("click", () => {
   togglePanel(accessibilityPanel);
+});
+
+themeBtn.addEventListener("click", () => {
+  togglePanel(themePanel);
+});
+
+// Add theme option click handlers
+themeOptions.forEach(option => {
+  option.addEventListener('click', () => {
+    const theme = option.dataset.theme;
+    
+    // Update active class
+    themeOptions.forEach(opt => opt.classList.remove('active'));
+    option.classList.add('active');
+    
+    // Apply and save theme
+    applyTheme(theme);
+    chrome.storage.sync.set({ theme });
+    
+    showToast(`${theme.charAt(0).toUpperCase() + theme.slice(1)} theme applied`, "success");
+  });
 });
 
 helpBtn.addEventListener("click", () => {
@@ -367,11 +489,17 @@ document.addEventListener("keydown", (event) => {
     helpBtn.click();
   }
   
+  // 'T' key opens theme panel
+  if (event.key === 't' || event.key === 'T') {
+    togglePanel(themePanel);
+  }
+  
   // Escape key closes all panels
   if (event.key === 'Escape') {
-    quickSettingsPanel.style.display = 'none';
-    statsPanel.style.display = 'none';
-    accessibilityPanel.style.display = 'none';
+    const allPanels = [quickSettingsPanel, statsPanel, accessibilityPanel, themePanel];
+    allPanels.forEach(p => {
+      p.style.display = 'none';
+    });
   }
 });
 
@@ -384,6 +512,17 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (changes.autoJoinEnabled) {
       updateStatusIndicator(!!changes.autoJoinEnabled.newValue);
       enableSwitch.checked = !!changes.autoJoinEnabled.newValue;
+    }
+    if (changes.theme) {
+      applyTheme(changes.theme.newValue);
+      
+      // Update active state in theme selector
+      themeOptions.forEach(option => {
+        option.classList.remove('active');
+        if (option.dataset.theme === changes.theme.newValue) {
+          option.classList.add('active');
+        }
+      });
     }
   }
 });

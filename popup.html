@@ -5,18 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SG AutoJoin</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <style>
+      /* Theme transition on popup */
       body {
-        width: 340px; 
-        min-height: 420px;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      
+      /* Theme option styles */
+      .theme-selector {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 10px;
+      }
+      
+      .theme-option {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        position: relative;
+        box-shadow: var(--sg-shadow-sm);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 2px solid transparent;
+      }
+      
+      .theme-option:hover {
+        transform: scale(1.1);
+        box-shadow: var(--sg-shadow-md);
+      }
+      
+      .theme-option.active {
+        border-color: var(--sg-white);
+        box-shadow: 0 0 0 2px var(--sg-primary);
+      }
+      
+      .theme-default {
+        background: linear-gradient(135deg, #1C769E 0%, #348FBD 100%);
+      }
+      
+      .theme-dark {
+        background: linear-gradient(135deg, #121212 0%, #3498DB 100%);
+      }
+      
+      .theme-steam {
+        background: linear-gradient(135deg, #1b2838 0%, #66C0F4 100%);
+      }
+      
+      .theme-mint {
+        background: linear-gradient(135deg, #00BFA5 0%, #64FFDA 100%);
+      }
+      
+      .theme-contrast {
+        background: linear-gradient(135deg, #000000 0%, #0066CC 100%);
+      }
+      body {
+        width: 360px; 
+        min-height: 440px;
         padding: var(--sg-spacing);
       }
       
       .popup-header {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         margin-bottom: var(--sg-spacing);
+        background: linear-gradient(135deg, var(--sg-primary-dark) 0%, var(--sg-primary) 100%);
+        margin: -16px -16px 16px -16px;
+        padding: 16px;
+        border-radius: var(--sg-radius) var(--sg-radius) 0 0;
+        color: var(--sg-white);
+        box-shadow: var(--sg-shadow-sm);
+      }
+      
+      .popup-header-left {
+        display: flex;
+        align-items: center;
       }
       
       .logo {
@@ -28,53 +97,155 @@
       .stats-card {
         display: flex;
         justify-content: space-between;
-        background-color: var(--sg-white);
-        border-radius: var(--sg-radius);
-        box-shadow: var(--sg-shadow-sm);
+        background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(245,245,245,0.9) 100%);
+        border-radius: var(--sg-radius-md);
+        box-shadow: var(--sg-shadow);
         padding: var(--sg-spacing);
-        margin-bottom: var(--sg-spacing);
+        margin-bottom: var(--sg-spacing-md);
+        border: 1px solid rgba(0,0,0,0.05);
+        backdrop-filter: blur(10px);
+        transition: transform var(--sg-transition), box-shadow var(--sg-transition);
+      }
+      
+      .stats-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--sg-shadow-md);
       }
       
       .stat-item {
         text-align: center;
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+      }
+      
+      .stat-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--sg-primary-light) 0%, var(--sg-primary) 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+        font-size: 16px;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.16);
       }
       
       .stat-value {
         font-size: var(--sg-font-size-lg);
-        font-weight: 600;
-        color: var(--sg-primary);
+        font-weight: 700;
+        color: var(--sg-primary-dark);
         margin: 0;
+        line-height: 1.2;
       }
       
       .stat-label {
         font-size: var(--sg-font-size-xs);
         color: var(--sg-gray);
-        margin: 0;
+        margin: 4px 0 0;
+        font-weight: 500;
+        letter-spacing: 0.5px;
       }
       
       .stat-divider {
         width: 1px;
-        background-color: var(--sg-light-gray);
+        background: linear-gradient(to bottom, rgba(0,0,0,0.03), rgba(0,0,0,0.1), rgba(0,0,0,0.03));
         margin: 0 var(--sg-spacing-sm);
       }
       
       .actions-container {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sg-spacing);
+        margin-bottom: var(--sg-spacing-md);
+      }
+      
+      .action-row {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr;
         gap: var(--sg-spacing-sm);
-        margin-bottom: var(--sg-spacing);
       }
       
       .status-container {
-        margin-bottom: var(--sg-spacing);
+        margin-bottom: var(--sg-spacing-md);
+      }
+      
+      .status-badge-container {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      
+      .status-badge {
+        display: flex;
+        align-items: center;
+        background-color: rgba(0,0,0,0.02);
+        padding: 5px 10px;
+        border-radius: var(--sg-radius);
+        border: 1px solid var(--sg-light-gray);
+      }
+      
+      .footer-card {
+        margin-top: auto;
+        background: linear-gradient(135deg, rgba(0,0,0,0.01) 0%, rgba(0,0,0,0.04) 100%);
+        border-radius: var(--sg-radius);
+        padding: 12px;
+        border: 1px solid rgba(0,0,0,0.05);
       }
       
       .footer-actions {
         display: flex;
         justify-content: space-between;
-        margin-top: var(--sg-spacing);
+        align-items: center;
         font-size: var(--sg-font-size-xs);
+      }
+      
+      .footer-link {
+        display: flex;
+        align-items: center;
+        color: var(--sg-primary);
+        text-decoration: none;
+        transition: all var(--sg-transition);
+        padding: 5px 8px;
+        border-radius: var(--sg-radius);
+      }
+      
+      .footer-link:hover {
+        background-color: rgba(0,0,0,0.05);
+        transform: translateY(-1px);
+      }
+      
+      .footer-button {
+        background: none;
+        border: none;
+        color: var(--sg-primary);
+        cursor: pointer;
+        padding: 5px 8px;
+        border-radius: var(--sg-radius);
+        transition: all var(--sg-transition);
+      }
+      
+      .footer-button:hover {
+        background-color: rgba(0,0,0,0.05);
+        transform: translateY(-1px);
+      }
+      
+      .footer-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        margin-right: 6px;
+      }
+      
+      .footer-text {
+        font-weight: 500;
+        display: flex;
+        align-items: center;
       }
 
       .keyboard-shortcut {
@@ -84,6 +255,7 @@
         margin-left: 4px;
         font-size: 10px;
         color: var(--sg-dark);
+        font-weight: 600;
       }
       
       /* Animation for the pulse effect */
@@ -100,8 +272,10 @@
   </head>
   <body>
     <div class="popup-header">
-      <img src="icons/icon32.png" alt="SteamGifts AutoJoin" class="logo">
-      <h4 class="sg-font-weight-bold sg-mb-0">SteamGifts AutoJoin</h4>
+      <div class="popup-header-left">
+        <img src="icons/icon32.png" alt="SteamGifts AutoJoin" class="logo">
+        <h4 class="sg-font-weight-bold sg-mb-0">SteamGifts AutoJoin</h4>
+      </div>
       
       <div class="sg-ml-2 sg-d-flex sg-align-items-center">
         <label class="sg-switch" title="Enable/Disable AutoJoin Features">
@@ -113,16 +287,19 @@
     
     <div class="stats-card">
       <div class="stat-item">
+        <div class="stat-icon"><i class="fas fa-coins"></i></div>
         <p class="stat-value" id="currentPoints">-</p>
         <p class="stat-label">POINTS</p>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
+        <div class="stat-icon"><i class="fas fa-gift"></i></div>
         <p class="stat-value" id="joinCount">-</p>
         <p class="stat-label">JOINED TODAY</p>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
+        <div class="stat-icon"><i class="fas fa-chart-pie"></i></div>
         <p class="stat-value" id="successRateValue">-</p>
         <p class="stat-label">SUCCESS RATE</p>
       </div>
@@ -130,16 +307,25 @@
     
     <div class="status-container">
       <div class="sg-card">
+        <div class="sg-card-header">
+          <div>
+            <i class="fas fa-robot"></i> Auto-Join Status
+          </div>
+          <label class="sg-switch" title="Toggle Auto-Join Mode">
+            <input type="checkbox" id="autoModeSwitch">
+            <span class="sg-switch-slider"></span>
+          </label>
+        </div>
         <div class="sg-card-body sg-p-2">
-          <div class="sg-d-flex sg-justify-content-between sg-align-items-center">
-            <div>
-              <span class="sg-font-weight-bold">Auto-Join Mode:</span>
+          <div class="status-badge-container">
+            <div class="status-badge">
+              <span class="sg-font-weight-bold">Mode:</span>
               <span id="autoModeStatus" class="sg-badge sg-ml-1">Inactive</span>
             </div>
-            <label class="sg-switch" title="Toggle Auto-Join Mode">
-              <input type="checkbox" id="autoModeSwitch">
-              <span class="sg-switch-slider"></span>
-            </label>
+            <div class="status-badge">
+              <span class="sg-font-weight-bold">Status:</span>
+              <span id="currentStatusBadge" class="sg-badge sg-badge-info sg-ml-1">Idle</span>
+            </div>
           </div>
           
           <div id="statusIndicator" class="sg-alert sg-alert-info sg-mt-2 sg-mb-0" style="font-size: var(--sg-font-size-xs);">
@@ -150,21 +336,23 @@
     </div>
     
     <div class="actions-container">
-      <button id="joinAllVisibleBtn" class="sg-btn sg-btn-primary">
+      <button id="joinAllVisibleBtn" class="sg-btn sg-btn-primary sg-btn-lg sg-btn-full">
         <i class="fa fa-bolt"></i> Join All Visible
       </button>
       
-      <button id="refreshPageBtn" class="sg-btn sg-btn-secondary">
-        <i class="fa fa-sync-alt"></i> Refresh Page
-      </button>
-      
-      <button id="quickConfigBtn" class="sg-btn sg-btn-outline" title="Apply a predefined configuration">
-        <i class="fa fa-sliders"></i> Quick Config
-      </button>
-      
-      <button id="statsBtn" class="sg-btn sg-btn-outline" title="View detailed statistics">
-        <i class="fa fa-chart-bar"></i> Statistics
-      </button>
+      <div class="action-row">
+        <button id="refreshPageBtn" class="sg-btn sg-btn-secondary">
+          <i class="fa fa-sync-alt"></i> Refresh Page
+        </button>
+        
+        <button id="quickConfigBtn" class="sg-btn sg-btn-secondary" title="Apply a predefined configuration">
+          <i class="fa fa-sliders"></i> Config
+        </button>
+        
+        <button id="statsBtn" class="sg-btn sg-btn-secondary" title="View detailed statistics">
+          <i class="fa fa-chart-bar"></i> Stats
+        </button>
+      </div>
     </div>
     
     <div id="quickSettingsPanel" class="sg-card" style="display: none;">
@@ -220,18 +408,22 @@
       </div>
     </div>
 
-    <div class="footer-actions">
-      <a href="options.html" target="_blank" class="sg-text-primary">
-        <i class="fa fa-cog"></i> Settings <span class="keyboard-shortcut">S</span>
-      </a>
-      
-      <button id="accessibilityBtn" class="sg-btn sg-btn-sm sg-btn-outline" title="Accessibility options">
-        <i class="fa fa-universal-access"></i>
-      </button>
-      
-      <a href="#" id="helpBtn" class="sg-text-primary">
-        <i class="fa fa-question-circle"></i> Help <span class="keyboard-shortcut">?</span>
-      </a>
+    <div class="footer-card">
+      <div class="footer-actions">
+        <a href="options.html" target="_blank" class="footer-link">
+          <div class="footer-icon"><i class="fa fa-cog"></i></div>
+          <div class="footer-text">Settings <span class="keyboard-shortcut">S</span></div>
+        </a>
+        
+        <button id="accessibilityBtn" class="footer-button" title="Accessibility options">
+          <div class="footer-icon"><i class="fa fa-universal-access"></i></div>
+        </button>
+        
+        <a href="#" id="helpBtn" class="footer-link">
+          <div class="footer-icon"><i class="fa fa-question-circle"></i></div>
+          <div class="footer-text">Help <span class="keyboard-shortcut">?</span></div>
+        </a>
+      </div>
     </div>
     
     <!-- Accessibility panel -->
