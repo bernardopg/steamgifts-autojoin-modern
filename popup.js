@@ -1,4 +1,5 @@
 import { showToast, setHighContrastMode, setLargeFontMode, setKeyboardFocusVisible } from './utils.js';
+import { clearWishlistCache } from './content_scripts/utils/wishlist-utils.js';
 
 // Function to apply theme to document
 function applyTheme(theme) {
@@ -453,6 +454,38 @@ quickWishlistOnly.addEventListener("change", () => {
     );
   });
 });
+
+// Clear wishlist cache button
+const clearWishlistCacheBtn = document.getElementById('clearWishlistCacheBtn');
+if (clearWishlistCacheBtn) {
+  clearWishlistCacheBtn.addEventListener('click', async () => {
+    try {
+      clearWishlistCacheBtn.disabled = true;
+      clearWishlistCacheBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+      
+      // Clear the cache
+      await clearWishlistCache();
+      
+      // Set the force refresh flag
+      chrome.storage.sync.set({ forceRefreshWishlist: true }, () => {
+        if (chrome.runtime.lastError) {
+          showToast(`Error setting refresh flag: ${chrome.runtime.lastError.message}`, "error");
+        } else {
+          showToast('Wishlist cache cleared! Will refresh on next page load.', "success");
+        }
+      });
+    } catch (e) {
+      showToast(`Error clearing wishlist cache: ${e.message}`, "error");
+      console.error('[SG AutoJoin] Error clearing wishlist cache:', e);
+    } finally {
+      // Restore button
+      setTimeout(() => {
+        clearWishlistCacheBtn.disabled = false;
+        clearWishlistCacheBtn.innerHTML = '<i class="fas fa-sync"></i>';
+      }, 1000);
+    }
+  });
+}
 
 quickSkipGroups.addEventListener("change", () => {
   const isEnabled = quickSkipGroups.checked;

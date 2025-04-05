@@ -65,21 +65,41 @@ const defaultSettings = {
   joinOnPageLoad: true,
   joinInterval: 10,
   maxJoinsPerCycle: 3,
+  joinDelayMin: 2000, // 2 seconds minimum delay between join attempts
+  joinDelayMax: 3000, // 3 seconds maximum delay between join attempts
   showJoinNotifications: true,
   showErrorNotifications: true,
   notificationDuration: 5,
   enableKeyboardShortcuts: true,
 
   // Filters
-  pointBuffer: 0,
+  pointBuffer: 50, // More conservative default
   maxCost: 100,
   minCost: 0,
   maxLevel: 10,
-  wishlistOnly: false,
-  skipGroups: false,
+  minLevel: 0,
+  wishlistOnly: true, // More conservative default
+  skipGroups: true,  // More conservative default
   skipOwned: true,
+  skipEntryLimited: true, // More conservative default
+  entryLimitThreshold: 5000, // More conservative default
+  sortByEndingSoon: false,
+  endingSoonThreshold: 60, // minutes
   blacklistKeywords: '',
   whitelistKeywords: '',
+  blacklistPublishers: '',
+  whitelistPublishers: '',
+  useRegexFilters: false,
+  
+  // Dynamic point buffers
+  dynamicPointBuffer: false,
+  pointsToPreserve: {
+    morning: 50,   // 6am - 12pm
+    afternoon: 50, // 12pm - 6pm
+    evening: 50,   // 6pm - 12am
+    night: 50      // 12am - 6am
+  },
+  pointSpendingStrategy: 'balanced', // 'conservative', 'balanced', 'aggressive'
 
   // Accessibility
   highContrastMode: false,
@@ -93,8 +113,17 @@ const defaultSettings = {
   // Statistics
   totalJoins: 0,
   successfulJoins: 0,
+  failedJoins: 0, 
+  skippedGiveaways: 0,
   pointsSpent: 0,
   joinHistory: [],
+  
+  // Wishlist caching
+  wishlistCacheTime: 6, // hours before refreshing wishlist cache
+  forceRefreshWishlist: false, // Flag to force refresh on next load
+  
+  // Last update timestamp
+  lastUpdated: Date.now()
 };
 
 // Initialize everything
@@ -538,6 +567,31 @@ function updateStatisticsDisplay(settings) {
   updateJoinHistory(settings.joinHistory || []);
 }
 
+/**
+ * Clear the wishlist cache and force a refresh on next load
+ */
+async function clearWishlistCache() {
+  try {
+    // First, import clearWishlistCache from the wishlist-utils module
+    const { clearWishlistCache: clearCache } = await import('./content_scripts/utils/wishlist-utils.js');
+    
+    // Clear the cache
+    await clearCache();
+    
+    // Set the force refresh flag
+    chrome.storage.sync.set({ forceRefreshWishlist: true }, () => {
+      if (chrome.runtime.lastError) {
+        showStatusMessage(`Error setting refresh flag: ${chrome.runtime.lastError.message}`, true);
+      } else {
+        showStatusMessage('Wishlist cache cleared successfully! The wishlist will be refreshed on next page load.', false);
+      }
+    });
+  } catch (e) {
+    showStatusMessage(`Error clearing wishlist cache: ${e.message}`, true);
+    console.error('[SG AutoJoin] Error clearing wishlist cache:', e);
+  }
+}
+
 // Update join history list
 function updateJoinHistory(history) {
   const historyList = document.getElementById('joinHistoryList');
@@ -637,40 +691,147 @@ function setupButtonHandlers() {
 
   // Save profile button
   saveProfileBtn.addEventListener('click', saveProfile);
+  
+  // Clear wishlist cache button
+  const clearWishlistCacheBtn = document.getElementById('clearWishlistCacheBtn');
+  if (clearWishlistCacheBtn) {
+    clearWishlistCacheBtn.addEventListener('click', clearWishlistCache);
+  }
 }
 
-// Get current settings from form
+/**
+ * Get all current settings from form inputs
+ * @returns {Object} Settings object with all current values
+ */
 function getCurrentSettings() {
+  // Get existing statistics that we want to preserve
+  let existingStats = {};
+  
+  chrome.storage.sync.get([
+    'totalJoins', 
+    'successfulJoins',
+    'failedJoins',
+    'skippedGiveaways',
+    'pointsSpent',
+    'joinHistory'
+  ], (items) => {
+    if (!chrome.runtime.lastError) {
+      existingStats = {
+        totalJoins: items.totalJoins || 0,
+        successfulJoins: items.successfulJoins || 0,
+        failedJoins: items.failedJoins || 0,
+        skippedGiveaways: items.skippedGiveaways || 0,
+        pointsSpent: items.pointsSpent || 0,
+        joinHistory: items.joinHistory || []
+      };
+    }
+  });
+  
+  // Get form values safely
+  const getNumericValue = (input, defaultValue = 0) => {
+    if (!input) return defaultValue;
+    const value = parseInt(input.value, 10);
+    return isNaN(value) ? defaultValue : value;
+  };
+  
+  const getBooleanValue = (input, defaultValue = false) => {
+    if (!input) return defaultValue;
+    return !!input.checked;
+  };
+
+  // Get dynamic point buffer settings
+  const dynamicPointBuffer = getBooleanValue(document.getElementById('dynamicPointBuffer'), false);
+  
+  // Get point buffer values for different times of day
+  const morningBuffer = getNumericValue(document.getElementById('morningPointBuffer'), 50);
+  const afternoonBuffer = getNumericValue(document.getElementById('afternoonPointBuffer'), 50);
+  const eveningBuffer = getNumericValue(document.getElementById('eveningPointBuffer'), 50);
+  const nightBuffer = getNumericValue(document.getElementById('nightPointBuffer'), 50);
+  
+  // Get point spending strategy
+  const strategySelect = document.getElementById('pointSpendingStrategy');
+  const pointSpendingStrategy = strategySelect ? strategySelect.value : 'balanced';
+  
+  // Get wishlist and publisher lists
+  const blacklistPublishersInput = document.getElementById('blacklistPublishers');
+  const whitelistPublishersInput = document.getElementById('whitelistPublishers');
+  
+  // Advanced filter options
+  const skipEntryLimited = getBooleanValue(document.getElementById('skipEntryLimited'), true);
+  const entryLimitThreshold = getNumericValue(document.getElementById('entryLimitThreshold'), 5000);
+  const sortByEndingSoon = getBooleanValue(document.getElementById('sortByEndingSoon'), false);
+  const endingSoonThreshold = getNumericValue(document.getElementById('endingSoonThreshold'), 60);
+  const minLevel = getNumericValue(document.getElementById('minLevel'), 0);
+  const useRegexFilters = getBooleanValue(document.getElementById('useRegexFilters'), false);
+
+  // Join timing options (added for enhanced delay control)
+  const joinDelayMin = 2000; // Default to 2 seconds
+  const joinDelayMax = 3000; // Default to 3 seconds
+  
+  // Get wishlist cache settings
+  const wishlistCacheTime = getNumericValue(document.getElementById('wishlistCacheTime'), 6);
+  
+  // Assemble complete settings object
   const settings = {
     // General
-    autoModeEnabled: autoModeEnabledInput.checked,
-    joinOnPageLoad: joinOnPageLoadInput.checked,
-    joinInterval: parseInt(joinIntervalInput.value, 10),
-    maxJoinsPerCycle: parseInt(maxJoinsPerCycleInput.value, 10),
-    showJoinNotifications: showJoinNotificationsInput.checked,
-    showErrorNotifications: showErrorNotificationsInput.checked,
-    notificationDuration: parseInt(notificationDurationInput.value, 10),
-    enableKeyboardShortcuts: enableKeyboardShortcutsInput.checked,
+    autoModeEnabled: getBooleanValue(autoModeEnabledInput, false),
+    joinOnPageLoad: getBooleanValue(joinOnPageLoadInput, true),
+    joinInterval: getNumericValue(joinIntervalInput, 10),
+    maxJoinsPerCycle: getNumericValue(maxJoinsPerCycleInput, 3),
+    joinDelayMin,
+    joinDelayMax,
+    showJoinNotifications: getBooleanValue(showJoinNotificationsInput, true),
+    showErrorNotifications: getBooleanValue(showErrorNotificationsInput, true),
+    notificationDuration: getNumericValue(notificationDurationInput, 5),
+    enableKeyboardShortcuts: getBooleanValue(enableKeyboardShortcutsInput, true),
 
     // Filters
-    pointBuffer: parseInt(pointBufferInput.value, 10),
-    maxCost: parseInt(maxCostInput.value, 10),
-    minCost: parseInt(minCostInput.value, 10),
-    maxLevel: parseInt(maxLevelInput.value, 10),
-    wishlistOnly: wishlistOnlyInput.checked,
-    skipGroups: skipGroupsInput.checked,
-    skipOwned: skipOwnedInput.checked,
-    blacklistKeywords: formatKeywordsList(blacklistKeywordsInput.value),
-    whitelistKeywords: formatKeywordsList(whitelistKeywordsInput.value),
+    pointBuffer: getNumericValue(pointBufferInput, 50),
+    maxCost: getNumericValue(maxCostInput, 100),
+    minCost: getNumericValue(minCostInput, 0),
+    maxLevel: getNumericValue(maxLevelInput, 10),
+    minLevel,
+    wishlistOnly: getBooleanValue(wishlistOnlyInput, true),
+    skipGroups: getBooleanValue(skipGroupsInput, true),
+    skipOwned: getBooleanValue(skipOwnedInput, true),
+    skipEntryLimited,
+    entryLimitThreshold,
+    sortByEndingSoon,
+    endingSoonThreshold,
+    blacklistKeywords: formatKeywordsList(blacklistKeywordsInput?.value || ''),
+    whitelistKeywords: formatKeywordsList(whitelistKeywordsInput?.value || ''),
+    blacklistPublishers: formatKeywordsList(blacklistPublishersInput?.value || ''),
+    whitelistPublishers: formatKeywordsList(whitelistPublishersInput?.value || ''),
+    useRegexFilters,
+    
+    // Dynamic Point Buffer settings
+    dynamicPointBuffer,
+    pointsToPreserve: {
+      morning: morningBuffer,
+      afternoon: afternoonBuffer,
+      evening: eveningBuffer,
+      night: nightBuffer
+    },
+    pointSpendingStrategy,
 
     // Accessibility
-    highContrastMode: highContrastModeInput.checked,
-    largeFontMode: largeFontModeInput.checked,
-    keyboardFocusMode: keyboardFocusModeInput.checked,
-    animationSpeed: parseInt(animationSpeedInput.value, 10),
-    persistentNotifications: persistentNotificationsInput.checked,
-    audioFeedback: audioFeedbackInput.checked,
-    audioVolume: parseInt(audioVolumeInput.value, 10),
+    highContrastMode: getBooleanValue(highContrastModeInput, false),
+    largeFontMode: getBooleanValue(largeFontModeInput, false),
+    keyboardFocusMode: getBooleanValue(keyboardFocusModeInput, false),
+    animationSpeed: getNumericValue(animationSpeedInput, 1),
+    persistentNotifications: getBooleanValue(persistentNotificationsInput, false),
+    audioFeedback: getBooleanValue(audioFeedbackInput, false),
+    audioVolume: getNumericValue(audioVolumeInput, 70),
+    
+    // Preserve statistics
+    ...existingStats,
+    
+    // Wishlist caching
+    wishlistCacheTime: wishlistCacheTime, 
+    forceRefreshWishlist: false, // Reset this flag when saving settings
+    
+    // Update timestamp
+    lastUpdated: Date.now()
   };
 
   return settings;
@@ -709,56 +870,133 @@ function saveSettings() {
   });
 }
 
-// Validate form inputs
+/**
+ * Validate all form inputs to ensure they have valid values
+ * @returns {boolean} True if all inputs are valid
+ */
 function validateInputs() {
-  // Get numeric values
-  const pointBuffer = parseInt(pointBufferInput.value, 10);
-  const maxCost = parseInt(maxCostInput.value, 10);
+  // Create validation queue for all numeric inputs
+  const validations = [
+    {
+      name: 'Point Buffer',
+      value: parseInt(pointBufferInput.value, 10),
+      min: 0,
+      max: 10000,
+      required: true
+    },
+    {
+      name: 'Min Cost',
+      value: parseInt(minCostInput.value, 10),
+      min: 0,
+      max: 300,
+      required: true
+    },
+    {
+      name: 'Max Cost',
+      value: parseInt(maxCostInput.value, 10),
+      min: 0,
+      max: 300,
+      required: true
+    },
+    {
+      name: 'Min Level',
+      value: parseInt(document.getElementById('minLevel')?.value || '0', 10),
+      min: 0,
+      max: 10,
+      required: true
+    },
+    {
+      name: 'Max Level',
+      value: parseInt(maxLevelInput.value, 10),
+      min: 0,
+      max: 10,
+      required: true
+    },
+    {
+      name: 'Join Interval',
+      value: parseInt(joinIntervalInput.value, 10),
+      min: 5,
+      max: 60,
+      required: true
+    },
+    {
+      name: 'Max Joins Per Cycle',
+      value: parseInt(maxJoinsPerCycleInput.value, 10),
+      min: 1,
+      max: 10,
+      required: true
+    },
+    {
+      name: 'Notification Duration',
+      value: parseInt(notificationDurationInput.value, 10),
+      min: 1,
+      max: 30,
+      required: true
+    },
+    {
+      name: 'Entry Limit Threshold',
+      value: parseInt(document.getElementById('entryLimitThreshold')?.value || '0', 10),
+      min: 10,
+      max: 100000,
+      required: false
+    },
+    {
+      name: 'Ending Soon Threshold',
+      value: parseInt(document.getElementById('endingSoonThreshold')?.value || '0', 10),
+      min: 10,
+      max: 1440, // 24 hours in minutes
+      required: false
+    }
+  ];
+
+  // Check each validation
+  for (const validation of validations) {
+    // Skip optional fields that aren't present in the form
+    if (!validation.required && validation.value === 0) continue;
+    
+    // Check if value is a number
+    if (isNaN(validation.value)) {
+      showStatusMessage(`${validation.name} must be a number.`, true);
+      return false;
+    }
+    
+    // Check min/max bounds
+    if (validation.value < validation.min) {
+      showStatusMessage(`${validation.name} must be at least ${validation.min}.`, true);
+      return false;
+    }
+    
+    if (validation.value > validation.max) {
+      showStatusMessage(`${validation.name} must be no more than ${validation.max}.`, true);
+      return false;
+    }
+  }
+  
+  // Special validations for related fields
   const minCost = parseInt(minCostInput.value, 10);
-  const maxLevel = parseInt(maxLevelInput.value, 10);
-  const joinInterval = parseInt(joinIntervalInput.value, 10);
-  const maxJoinsPerCycle = parseInt(maxJoinsPerCycleInput.value, 10);
-
-  // Validate point buffer
-  if (isNaN(pointBuffer) || pointBuffer < 0) {
-    showStatusMessage('Point Buffer must be a non-negative number.', true);
-    return false;
-  }
-
-  // Validate costs
-  if (isNaN(minCost) || minCost < 0) {
-    showStatusMessage('Min Cost must be a non-negative number.', true);
-    return false;
-  }
-
-  if (isNaN(maxCost) || maxCost < 0) {
-    showStatusMessage('Max Cost must be a non-negative number.', true);
-    return false;
-  }
-
-  if (minCost > maxCost && maxCost > 0) {
+  const maxCost = parseInt(maxCostInput.value, 10);
+  
+  if (minCost > maxCost) {
     showStatusMessage('Min Cost cannot be greater than Max Cost.', true);
     return false;
   }
-
-  // Validate level
-  if (isNaN(maxLevel) || maxLevel < 0 || maxLevel > 10) {
-    showStatusMessage('Max Level must be a number between 0 and 10.', true);
+  
+  const minLevel = parseInt(document.getElementById('minLevel')?.value || '0', 10);
+  const maxLevel = parseInt(maxLevelInput.value, 10);
+  
+  if (minLevel > maxLevel) {
+    showStatusMessage('Min Level cannot be greater than Max Level.', true);
     return false;
   }
-
-  // Validate join interval
-  if (isNaN(joinInterval) || joinInterval < 5 || joinInterval > 60) {
-    showStatusMessage('Join Interval must be a number between 5 and 60.', true);
-    return false;
+  
+  // Validate point buffer compared to min/max cost to avoid unintended blocking
+  const pointBuffer = parseInt(pointBufferInput.value, 10);
+  if (pointBuffer > 0 && maxCost > 0 && pointBuffer >= maxCost) {
+    showStatusMessage('Warning: Your Point Buffer is greater than or equal to your Max Cost. This may prevent joining giveaways.', true);
+    // Allow this configuration but warn the user
   }
-
-  // Validate max joins per cycle
-  if (isNaN(maxJoinsPerCycle) || maxJoinsPerCycle < 1 || maxJoinsPerCycle > 10) {
-    showStatusMessage('Max Joins Per Cycle must be a number between 1 and 10.', true);
-    return false;
-  }
-
+  
+  // If we got here, everything is valid
   return true;
 }
 

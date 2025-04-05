@@ -233,7 +233,7 @@ async function processListViewForAutoJoin() {
                 : "No eligible giveaways found",
             true
         );
-        g/developmen
+        
         if (!joinAttemptedThisCycle) {
             console.log("[SG AutoJoin] Auto-join: No eligible giveaways found this cycle.");
         }
