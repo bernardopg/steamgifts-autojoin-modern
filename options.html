@@ -709,10 +709,15 @@
                 <label class="form-label">Wishlist Only</label>
                 <div class="form-help">Only join giveaways for games in your wishlist</div>
               </div>
-              <label class="sg-switch">
-                <input type="checkbox" id="wishlistOnly">
-                <span class="sg-switch-slider"></span>
-              </label>
+              <div class="sg-d-flex sg-align-items-center">
+                <label class="sg-switch sg-mr-2">
+                  <input type="checkbox" id="wishlistOnly">
+                  <span class="sg-switch-slider"></span>
+                </label>
+                <button id="clearWishlistCacheBtn" class="sg-btn sg-btn-sm sg-btn-outline" title="Clear wishlist cache and fetch fresh data">
+                  <i class="fas fa-sync"></i> Refresh Cache
+                </button>
+              </div>
             </div>
             
             <div class="form-field-inline">
